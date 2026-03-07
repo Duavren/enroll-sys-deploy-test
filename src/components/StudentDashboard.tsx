@@ -1985,32 +1985,44 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
           {/* Scholar Student */}
           {enrollmentStep === 2 && studentType === 'scholar' && (
             <div className="space-y-4">
-              <h3 className="text-lg mb-4">Scholar Student</h3>
-              
-              <div className="border rounded-lg p-4 mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <Label>Scholarship Application Form</Label>
-                  <Button size="sm" variant="outline" className="gap-2">
-                    <Download className="h-4 w-4" />
-                    Download
-                  </Button>
-                </div>
-                <p className="text-xs text-slate-500">Download the scholarship application form</p>
-              </div>
+              <h3 className="text-lg mb-4">Scholar Student - Upload Requirements</h3>
 
-              <Button 
-                onClick={() => setEnrollmentStep(3)}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600"
-              >
-                Next
-              </Button>
-            </div>
-          )}
+              <DocumentUpload
+                label="Form 137"
+                description="Upload your Form 137 (Report Card)"
+                docType="form137"
+                onFileSelect={handleDocumentUpload}
+                selectedFile={uploadedDocuments['form137']}
+                acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              />
 
-          {enrollmentStep === 3 && studentType === 'scholar' && (
-            <div className="space-y-4">
-              <h3 className="text-lg mb-4">Upload Scholarship Documents</h3>
-              
+              <DocumentUpload
+                label="Form 138"
+                description="Upload your Form 138 (Transcript of Records)"
+                docType="form138"
+                onFileSelect={handleDocumentUpload}
+                selectedFile={uploadedDocuments['form138']}
+                acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              />
+
+              <DocumentUpload
+                label="Birth Certificate"
+                description="Upload a copy of your Birth Certificate"
+                docType="birth_certificate"
+                onFileSelect={handleDocumentUpload}
+                selectedFile={uploadedDocuments['birth_certificate']}
+                acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              />
+
+              <DocumentUpload
+                label="Good Moral Certificate"
+                description="Upload your Good Moral Certificate"
+                docType="moral_certificate"
+                onFileSelect={handleDocumentUpload}
+                selectedFile={uploadedDocuments['moral_certificate']}
+                acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              />
+
               <DocumentUpload
                 label="Scholarship Application Form"
                 description="Upload completed scholarship application"
@@ -2022,14 +2034,25 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
               />
 
               <DocumentUpload
-                label="Supporting Documents"
-                description="Upload required supporting documents"
+                label="Scholarship Supporting Documents"
+                description="Upload required supporting documents for scholarship"
                 docType="scholarship_supporting"
                 onFileSelect={handleDocumentUpload}
                 selectedFile={uploadedDocuments['scholarship_supporting']}
                 downloadUrl={getDocDownloadUrl('scholarship_supporting')}
                 acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               />
+
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label>Download Admission Forms</Label>
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => window.open(getDocDownloadUrl('scholarship_application'), '_blank')}>
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Download and fill out the admission forms</p>
+              </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6 mb-4">
                 <h4 className="font-medium text-amber-900 mb-2">Submission Options</h4>
@@ -2040,7 +2063,7 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
               </div>
 
               <div className="flex gap-2 mt-6">
-                <Button variant="outline" onClick={() => setEnrollmentStep(2)}>Back</Button>
+                <Button variant="outline" onClick={() => setEnrollmentStep(1)}>Back</Button>
                 {!areDocumentsComplete('Scholar') && (
                   <Button variant="secondary" onClick={handleSubmitForAssessment} disabled={submitting}>
                     {submitting ? 'Submitting...' : 'To Follow'}
