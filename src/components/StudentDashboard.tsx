@@ -613,7 +613,9 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
       'Transferee': ['tor', 'certificate_transfer', 'birth_certificate', 'moral_certificate'],
       'Returning': ['form137', 'birth_certificate'],
       'Continuing': ['form137'],
-      'Scholar': ['form137', 'form138', 'birth_certificate', 'moral_certificate', 'scholarship_application', 'scholarship_supporting']
+      'Scholar': scholarshipType !== 'None' 
+        ? ['form137', 'form138', 'birth_certificate', 'moral_certificate', 'scholarship_application', 'scholarship_supporting']
+        : ['form137', 'form138', 'birth_certificate', 'moral_certificate']
     };
     return requiredDocs[studentType] || [];
   };
@@ -1701,7 +1703,18 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
               </div>
               
               {scholarshipType !== 'None' && (
-                <div>
+                <div className="space-y-3">
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>Scholarship Letter Template</Label>
+                      <Button size="sm" variant="outline" className="gap-2" onClick={() => window.open(getDocDownloadUrl('scholarship_letter'), '_blank')}>
+                        <Download className="h-4 w-4" />
+                        Download
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-500">Download the scholarship letter template</p>
+                  </div>
+                  
                   <DocumentUpload
                     label="Scholarship Letter"
                     description="Upload your official scholarship letter or certificate"
@@ -2023,25 +2036,29 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
                 acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               />
 
-              <DocumentUpload
-                label="Scholarship Application Form"
-                description="Upload completed scholarship application"
-                docType="scholarship_application"
-                onFileSelect={handleDocumentUpload}
-                selectedFile={uploadedDocuments['scholarship_application']}
-                downloadUrl={getDocDownloadUrl('scholarship_application')}
-                acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              />
+              {scholarshipType !== 'None' && (
+                <>
+                  <DocumentUpload
+                    label="Scholarship Application Form"
+                    description="Upload completed scholarship application"
+                    docType="scholarship_application"
+                    onFileSelect={handleDocumentUpload}
+                    selectedFile={uploadedDocuments['scholarship_application']}
+                    downloadUrl={getDocDownloadUrl('scholarship_application')}
+                    acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  />
 
-              <DocumentUpload
-                label="Scholarship Supporting Documents"
-                description="Upload required supporting documents for scholarship"
-                docType="scholarship_supporting"
-                onFileSelect={handleDocumentUpload}
-                selectedFile={uploadedDocuments['scholarship_supporting']}
-                downloadUrl={getDocDownloadUrl('scholarship_supporting')}
-                acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              />
+                  <DocumentUpload
+                    label="Scholarship Supporting Documents"
+                    description="Upload required supporting documents for scholarship"
+                    docType="scholarship_supporting"
+                    onFileSelect={handleDocumentUpload}
+                    selectedFile={uploadedDocuments['scholarship_supporting']}
+                    downloadUrl={getDocDownloadUrl('scholarship_supporting')}
+                    acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  />
+                </>
+              )}
 
               <div className="border-t pt-4">
                 <div className="flex items-center justify-between">
