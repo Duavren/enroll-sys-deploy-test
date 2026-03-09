@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { query, run } from '../database/connection';
+import { query, run, get } from '../database/connection';
 import { AuthRequest } from '../middleware/auth.middleware';
 import fs from 'fs';
 import path from 'path';
@@ -338,12 +338,19 @@ export const getEnrollmentDocuments = async (req: AuthRequest, res: Response) =>
   try {
     const { enrollmentId } = req.params;
 
+    // First get the student_id from the enrollment
+    const enrollment = await get(
+      'SELECT student_id FROM enrollments WHERE id = ?',
+      [enrollmentId]
+    );
+
+    // Fetch documents linked to this enrollment OR to the student (for pre-existing documents)
     const documents = await query(
       `SELECT id, student_id, enrollment_id, document_type, file_name, file_path, file_size, upload_date, status 
        FROM documents 
-       WHERE enrollment_id = ? 
+       WHERE enrollment_id = ? ${enrollment ? 'OR (student_id = ? AND enrollment_id IS NULL)' : ''}
        ORDER BY document_type ASC`,
-      [enrollmentId]
+      enrollment ? [enrollmentId, enrollment.student_id] : [enrollmentId]
     );
 
     res.json({

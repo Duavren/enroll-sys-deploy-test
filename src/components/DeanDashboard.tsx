@@ -1327,25 +1327,64 @@ export default function DeanDashboard({ onLogout }: DeanDashboardProps) {
                   ) : pendingGrades.length === 0 ? (
                     <p className="text-center text-slate-500 py-8">No grades pending approval.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {pendingGrades.map((g: any) => (
-                        <div key={g.id} className="p-4 bg-white border rounded-xl shadow-sm hover:shadow-md transition-all">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-slate-900">{g.student_name}</p>
-                              <p className="text-sm text-slate-600">
-                                {g.subject_code} — {g.subject_name} ({g.units} units)
-                              </p>
-                              <div className="flex items-center gap-3 mt-1">
-                                <span className="text-sm font-semibold text-indigo-600">Grade: {g.grade}</span>
-                                <span className="text-xs text-slate-400">{g.course} • Year {g.year_level}</span>
-                                <span className="text-xs text-slate-400">{g.school_year} • {g.semester} Sem</span>
+                    <div className="space-y-4">
+                      {/* Group grades by student */}
+                      {Object.values(
+                        pendingGrades.reduce((acc: Record<string, any>, g: any) => {
+                          const key = g.student_name || 'Unknown';
+                          if (!acc[key]) {
+                            acc[key] = {
+                              student_name: g.student_name,
+                              course: g.course,
+                              year_level: g.year_level,
+                              school_year: g.school_year,
+                              semester: g.semester,
+                              grades: []
+                            };
+                          }
+                          acc[key].grades.push(g);
+                          return acc;
+                        }, {} as Record<string, any>)
+                      ).map((group: any) => (
+                        <div key={group.student_name} className="bg-white border rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden">
+                          {/* Student Header */}
+                          <div className="p-4 bg-gradient-to-r from-slate-50 to-indigo-50 border-b">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-slate-900">{group.student_name}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">{group.course} • Year {group.year_level} • {group.school_year} • {group.semester} Sem</p>
                               </div>
-                              <p className="text-xs text-slate-400 mt-1">Submitted: {g.updated_at ? new Date(g.updated_at).toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : 'N/A'}</p>
+                              <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                                {group.grades.length} {group.grades.length === 1 ? 'subject' : 'subjects'}
+                              </Badge>
                             </div>
-                            <Button size="sm" onClick={() => handleApproveGrade(g.id)}>
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
-                            </Button>
+                          </div>
+                          {/* Subject Grades List */}
+                          <div className="px-4 py-2 bg-slate-50 border-b flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            <span>Subject</span>
+                            <div className="flex items-center gap-3">
+                              <span className="w-12 text-center">Grade</span>
+                              <span className="w-24 text-center">Action</span>
+                            </div>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {group.grades.map((g: any) => (
+                              <div key={g.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-slate-800">{g.subject_code} — {g.subject_name}</p>
+                                  <div className="flex items-center gap-3 mt-0.5">
+                                    <span className="text-xs text-slate-500">{g.units} units</span>
+                                    <span className="text-xs text-slate-400">Submitted: {g.updated_at ? new Date(g.updated_at).toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-sm font-bold text-indigo-600">{g.grade}</span>
+                                  <Button size="sm" onClick={() => handleApproveGrade(g.id)}>
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}

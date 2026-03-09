@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { query, run } from '../database/connection';
+import { query, run, get } from '../database/connection';
 import { AuthRequest } from '../middleware/auth.middleware';
 import bcrypt from 'bcryptjs';
 
@@ -593,10 +593,16 @@ export const getEnrollmentDocuments = async (req: AuthRequest, res: Response) =>
   try {
     const { id } = req.params;
 
-    // Get documents for this enrollment
-    const documents = await query(
-      'SELECT * FROM documents WHERE enrollment_id = ? ORDER BY upload_date DESC',
+    // First get the student_id from the enrollment
+    const enrollment = await get(
+      'SELECT student_id FROM enrollments WHERE id = ?',
       [id]
+    );
+
+    // Get documents for this enrollment OR pre-existing student documents (no enrollment_id)
+    const documents = await query(
+      `SELECT * FROM documents WHERE enrollment_id = ? ${enrollment ? 'OR (student_id = ? AND enrollment_id IS NULL)' : ''} ORDER BY upload_date DESC`,
+      enrollment ? [id, enrollment.student_id] : [id]
     );
 
     res.json({
@@ -717,6 +723,72 @@ export const rejectAccountRequest = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error('Reject account request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+/**
+ * Get audit trail - all modifications by non-student roles
+ */
+export const getAuditTrail = async (req: AuthRequest, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
+    const limit = Math.max(1, Math.min(100, parseInt(String(req.query.limit || '25'), 10)));
+    const search = (req.query.search || '').toString().toLowerCase();
+    const startDate = req.query.startDate ? new Date(String(req.query.startDate)) : null;
+    const endDate = req.query.endDate ? new Date(String(req.query.endDate)) : null;
+
+    let sql = `
+      SELECT al.*, u.username, u.role
+      FROM activity_logs al
+      LEFT JOIN users u ON al.user_id = u.id
+      WHERE u.role IS NOT NULL AND u.role != 'student'
+    `;
+    const params: any[] = [];
+
+    if (search) {
+      sql += ` AND (al.action LIKE ? OR al.description LIKE ? OR u.username LIKE ? OR u.role LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    if (startDate && !isNaN(startDate.getTime())) {
+      sql += ` AND al.created_at >= ?`;
+      params.push(startDate.toISOString());
+    }
+
+    if (endDate && !isNaN(endDate.getTime())) {
+      sql += ` AND al.created_at <= ?`;
+      params.push(endDate.toISOString());
+    }
+
+    // Get total count
+    const countResult = await query(
+      sql.replace('SELECT al.*, u.username, u.role', 'SELECT COUNT(*) as total'),
+      params
+    );
+    const total = countResult[0]?.total || 0;
+
+    // Get paginated data
+    sql += ' ORDER BY al.created_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, (page - 1) * limit);
+
+    const logs = await query(sql, params);
+
+    res.json({
+      success: true,
+      data: logs,
+      meta: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get audit trail error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

@@ -13,7 +13,8 @@ import {
   getDashboardStats,
   getPendingAccountRequests,
   approveAccountRequest,
-  rejectAccountRequest
+  rejectAccountRequest,
+  getAuditTrail
 } from '../controllers/admin.controller';
 import {
   getAllFaculty,
@@ -29,6 +30,9 @@ const router = express.Router();
 
 // Dashboard
 router.get('/dashboard/stats', authenticate, authorize('admin', 'superadmin', 'dean', 'registrar'), getDashboardStats);
+
+// Audit Trail
+router.get('/audit-trail', authenticate, authorize('admin', 'superadmin'), getAuditTrail);
 
 // Students
 router.get('/students', authenticate, authorize('admin', 'superadmin', 'dean', 'registrar'), getAllStudents);

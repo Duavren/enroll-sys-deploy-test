@@ -1023,6 +1023,29 @@ async function setupDatabase() {
     insertManySampleStudents(sampleStudentData);
     console.log('✅ Sample students created');
 
+    // Add pre-existing documents for continuing student (Juan Dela Cruz)
+    const juanStudent = await query('SELECT id FROM students WHERE student_id = ?', ['2024-001234']);
+    if (juanStudent.length > 0) {
+      const juanId = juanStudent[0].id;
+      const juanDocs = [
+        { type: 'diploma', name: 'juandelacruz_diploma.pdf', path: '/uploads/documents/juandelacruz_diploma.pdf', size: 245000 },
+        { type: 'picture_2x2', name: 'juandelacruz_2x2_photo.jpg', path: '/uploads/documents/juandelacruz_2x2_photo.jpg', size: 125000 },
+        { type: 'form137', name: 'juandelacruz_form137.pdf', path: '/uploads/documents/juandelacruz_form137.pdf', size: 189000 },
+        { type: 'birth_certificate', name: 'juandelacruz_birth_certificate.pdf', path: '/uploads/documents/juandelacruz_birth_certificate.pdf', size: 156000 },
+      ];
+      const insertDoc = db.prepare(`
+        INSERT OR IGNORE INTO documents (student_id, document_type, file_name, file_path, file_size, status, verified_by, verified_at)
+        VALUES (?, ?, ?, ?, ?, 'Verified', 1, datetime('now'))
+      `);
+      const insertManyDocs = db.transaction((docs: any[]) => {
+        for (const d of docs) {
+          insertDoc.run(juanId, d.type, d.name, d.path, d.size);
+        }
+      });
+      insertManyDocs(juanDocs);
+      console.log('✅ Pre-existing documents added for Juan Dela Cruz (Continuing)');
+    }
+
     // Seed sections (Section 1 and Section 2)
     db.exec(`
       INSERT OR IGNORE INTO sections (section_code, section_name, course, year_level, school_year, semester, status)

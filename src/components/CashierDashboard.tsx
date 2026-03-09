@@ -1219,19 +1219,6 @@ export default function CashierDashboard({ onLogout }: CashierDashboardProps) {
                               </Button>
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="!text-amber-700 !bg-amber-50 !border-amber-300"
-                                onClick={() => {
-                                  setPenaltyPaymentId(ip.id);
-                                  setPenaltyAmount('');
-                                  setPenaltyReason(isLate ? `Late payment - ${daysLate} day(s) overdue` : '');
-                                }}
-                              >
-                                <AlertTriangle className="h-4 w-4 mr-2" />
-                                Add Penalty
-                              </Button>
-                              <Button
-                                size="sm"
                                 variant="destructive"
                                 onClick={() => setRejectingPaymentId(ip.id)}
                               >

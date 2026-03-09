@@ -134,6 +134,84 @@ async function addSampleStudents() {
     insertManyStudents(studentData);
     console.log('✅ Student records created');
 
+    // Add sample documents for continuing student (juandelacruz)
+    // These represent documents from previous enrollment that continuing students already have
+    const juanStudent = await query(
+      'SELECT id FROM students WHERE student_id = ?',
+      ['2024-001234']
+    );
+
+    if (juanStudent.length > 0) {
+      const juanId = juanStudent[0].id;
+
+      // Find Juan's enrollment so documents are linked to it
+      const juanEnrollments = await query(
+        'SELECT id FROM enrollments WHERE student_id = ? ORDER BY id DESC LIMIT 1',
+        [juanId]
+      );
+      const juanEnrollmentId = juanEnrollments.length > 0 ? juanEnrollments[0].id : null;
+
+      const sampleDocuments = [
+        {
+          student_id: juanId,
+          enrollment_id: juanEnrollmentId,
+          document_type: 'diploma',
+          file_name: 'juandelacruz_diploma.pdf',
+          file_path: '/uploads/documents/juandelacruz_diploma.pdf',
+          file_size: 245000,
+          status: 'Verified'
+        },
+        {
+          student_id: juanId,
+          enrollment_id: juanEnrollmentId,
+          document_type: 'picture_2x2',
+          file_name: 'juandelacruz_2x2_photo.jpg',
+          file_path: '/uploads/documents/juandelacruz_2x2_photo.jpg',
+          file_size: 125000,
+          status: 'Verified'
+        },
+        {
+          student_id: juanId,
+          enrollment_id: juanEnrollmentId,
+          document_type: 'form137',
+          file_name: 'juandelacruz_form137.pdf',
+          file_path: '/uploads/documents/juandelacruz_form137.pdf',
+          file_size: 189000,
+          status: 'Verified'
+        },
+        {
+          student_id: juanId,
+          enrollment_id: juanEnrollmentId,
+          document_type: 'birth_certificate',
+          file_name: 'juandelacruz_birth_certificate.pdf',
+          file_path: '/uploads/documents/juandelacruz_birth_certificate.pdf',
+          file_size: 156000,
+          status: 'Verified'
+        }
+      ];
+
+      // Delete any existing documents for Juan to avoid duplicates on re-run
+      db.prepare('DELETE FROM documents WHERE student_id = ?').run(juanId);
+
+      const insertDoc = db.prepare(`
+        INSERT INTO documents (
+          student_id, enrollment_id, document_type, file_name, file_path, file_size, status, verified_by, verified_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `);
+
+      const insertManyDocs = db.transaction((docs: any[]) => {
+        for (const doc of docs) {
+          insertDoc.run(
+            doc.student_id, doc.enrollment_id, doc.document_type, doc.file_name, doc.file_path,
+            doc.file_size, doc.status, 1  // verified_by admin (id=1)
+          );
+        }
+      });
+
+      insertManyDocs(sampleDocuments);
+      console.log('✅ Sample documents added for continuing student (Juan Dela Cruz)');
+    }
+
     console.log('\n🎉 Sample students added successfully!\n');
     console.log('Student credentials (all passwords: student123):');
     console.log('================================================');

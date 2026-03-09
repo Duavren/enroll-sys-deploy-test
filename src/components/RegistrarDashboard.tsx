@@ -221,82 +221,75 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
           const submitted = Array.isArray(submittedResp?.data) ? submittedResp.data : (Array.isArray(submittedResp) ? submittedResp : []);
           const approved = Array.isArray(approvedResp?.data) ? approvedResp.data : (Array.isArray(approvedResp) ? approvedResp : []);
           
-          // Map both to display format
-          const gradeMap = new Map<string, any>();
+          // Group grades by student name
+          const studentMap = new Map<string, any>();
           
           // Process submitted grades (pending dean approval)
           submitted.forEach((grade: any) => {
-            const key = `${grade.subject_code}-${grade.school_year}-${grade.semester}`;
-            if (!gradeMap.has(key)) {
-              gradeMap.set(key, {
-                id: grade.subject_id,
-                subject: grade.subject_name,
-                subject_code: grade.subject_code,
+            const key = grade.student_name || 'Unknown';
+            if (!studentMap.has(key)) {
+              studentMap.set(key, {
+                student_name: grade.student_name,
+                course: grade.course,
+                year_level: grade.year_level,
                 school_year: grade.school_year,
                 semester: grade.semester,
-                students: 0,
-                grades_list: [],
+                subjects: [],
+                status: 'Submitted',
                 date: new Date(grade.updated_at).toLocaleDateString(),
-                status: 'Submitted'
               });
             }
-            
-            const item = gradeMap.get(key)!;
-            item.students += 1;
-            item.grades_list.push({
-              student: grade.student_name,
+            const item = studentMap.get(key)!;
+            item.subjects.push({
+              subject_code: grade.subject_code,
+              subject_name: grade.subject_name,
               grade: grade.grade,
-              course: grade.course
+              units: grade.units,
+              updated_at: grade.updated_at,
+              status: 'Submitted',
             });
           });
           
           // Process approved grades (dean approved)
           approved.forEach((grade: any) => {
-            const key = `${grade.subject_code}-${grade.school_year}-${grade.semester}`;
-            if (!gradeMap.has(key)) {
-              gradeMap.set(key, {
-                id: grade.subject_id,
-                subject: grade.subject_name,
-                subject_code: grade.subject_code,
+            const key = grade.student_name || 'Unknown';
+            if (!studentMap.has(key)) {
+              studentMap.set(key, {
+                student_name: grade.student_name,
+                course: grade.course,
+                year_level: grade.year_level,
                 school_year: grade.school_year,
                 semester: grade.semester,
-                students: 0,
-                grades_list: [],
+                subjects: [],
                 approved_by: grade.approved_by,
+                status: 'Approved',
                 date: new Date(grade.updated_at).toLocaleDateString(),
-                status: 'Approved'
               });
-            } else {
-              // Update existing entry with approval info
-              const item = gradeMap.get(key)!;
-              item.approved_by = grade.approved_by;
-              item.status = 'Approved';
             }
+            const item = studentMap.get(key)!;
+            // If all subjects for this student are approved, mark the student as Approved
+            item.approved_by = grade.approved_by;
             
-            const item = gradeMap.get(key)!;
-            // Only count if not already counted from submitted
-            const existingStudent = item.grades_list.find((g: any) => g.student === grade.student_name);
-            if (!existingStudent) {
-              item.students += 1;
-            }
-            // Update or add grade
-            const gradeIdx = item.grades_list.findIndex((g: any) => g.student === grade.student_name);
-            if (gradeIdx >= 0) {
-              item.grades_list[gradeIdx] = {
-                student: grade.student_name,
-                grade: grade.grade,
-                course: grade.course
-              };
+            const existing = item.subjects.find((s: any) => s.subject_code === grade.subject_code);
+            if (existing) {
+              existing.grade = grade.grade;
+              existing.status = 'Approved';
             } else {
-              item.grades_list.push({
-                student: grade.student_name,
+              item.subjects.push({
+                subject_code: grade.subject_code,
+                subject_name: grade.subject_name,
                 grade: grade.grade,
-                course: grade.course
+                units: grade.units,
+                updated_at: grade.updated_at,
+                status: 'Approved',
               });
             }
+            // Update student-level status based on whether all subjects are approved
+            const allApproved = item.subjects.every((s: any) => s.status === 'Approved');
+            item.status = allApproved ? 'Approved' : 'Submitted';
           });
           
-          setGradeSubmissions(Array.from(gradeMap.values()));
+          setGradeSubmissions(Array.from(studentMap.values()));
         } catch (err) {
           console.error('Failed to load grades:', err);
           setGradeSubmissions([]);
@@ -912,6 +905,10 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
               />
             </div>
           </div>
+          <Button onClick={() => setActiveSection('Subject Management')} className="bg-gradient-to-r from-blue-600 to-indigo-600">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Modify Subjects
+          </Button>
         </div>
         <Card className="border-0 shadow-lg">
           <div className="p-6">
@@ -964,55 +961,71 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
             </TabsList>
             
             <TabsContent value="pending" className="mt-6">
-              <div className="space-y-4">
-                {gradeSubmissions.filter(g => g.status === 'Pending').map((submission) => (
-                  <div key={submission.id} className="p-4 border border-red-200 bg-red-50 rounded-lg">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="text-slate-900">{submission.subject}</h4>
-                        <p className="text-sm text-slate-600">{submission.faculty}</p>
-                        <p className="text-sm text-slate-500 mt-1">{submission.section} • {submission.students} students</p>
-                        <p className="text-xs text-red-600 mt-2">{submission.date}</p>
+              {gradeSubmissions.filter(g => g.status === 'Pending').length === 0 ? (
+                <p className="text-center text-slate-500 py-8">No pending grade submissions</p>
+              ) : (
+                <div className="space-y-4">
+                  {gradeSubmissions.filter(g => g.status === 'Pending').map((student) => (
+                    <div key={student.student_name} className="border border-red-200 bg-red-50 rounded-xl overflow-hidden">
+                      <div className="p-4 border-b border-red-200 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">{student.student_name}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{student.course} • Year {student.year_level} • {student.school_year} • {student.semester} Sem</p>
+                        </div>
+                        <Badge className="bg-red-100 text-red-700 border-0">Pending</Badge>
                       </div>
-                      <Badge className="bg-red-100 text-red-700 border-0">
-                        {submission.status}
-                      </Badge>
+                      <div className="divide-y divide-red-100">
+                        {student.subjects.map((s: any, idx: number) => (
+                          <div key={idx} className="px-4 py-2.5 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{s.subject_code} — {s.subject_name}</p>
+                              <p className="text-xs text-slate-500">{s.units} units</p>
+                            </div>
+                            <span className="text-sm font-bold text-indigo-600">{s.grade}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <Button size="sm" variant="outline" className="text-blue-600 hover:bg-blue-50">
-                      Send Reminder
-                    </Button>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="submitted" className="mt-6">
-              <div className="space-y-4">
-                {gradeSubmissions.filter(g => g.status === 'Submitted').map((submission) => (
-                  <div key={submission.id} className="p-4 border rounded-lg">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="text-slate-900">{submission.subject}</h4>
-                        <p className="text-sm text-slate-600">{submission.faculty}</p>
-                        <p className="text-sm text-slate-500 mt-1">{submission.section} • {submission.students} students</p>
-                        <p className="text-xs text-slate-400 mt-2">{submission.date}</p>
+              {gradeSubmissions.filter(g => g.status === 'Submitted').length === 0 ? (
+                <p className="text-center text-slate-500 py-8">No submitted grades pending approval</p>
+              ) : (
+                <div className="space-y-4">
+                  {gradeSubmissions.filter(g => g.status === 'Submitted').map((student) => (
+                    <div key={student.student_name} className="border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                      <div className="p-4 bg-gradient-to-r from-slate-50 to-indigo-50 border-b flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">{student.student_name}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{student.course} • Year {student.year_level} • {student.school_year} • {student.semester} Sem</p>
+                        </div>
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                          {student.subjects.length} {student.subjects.length === 1 ? 'subject' : 'subjects'} • Awaiting Dean Approval
+                        </Badge>
                       </div>
-                      <Badge className="bg-green-100 text-green-700 border-0">
-                        {submission.status}
-                      </Badge>
+                      <div className="px-4 py-2 bg-slate-50 border-b flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        <span>Subject</span>
+                        <span className="w-12 text-center">Grade</span>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {student.subjects.map((s: any, idx: number) => (
+                          <div key={idx} className="px-4 py-2.5 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{s.subject_code} — {s.subject_name}</p>
+                              <p className="text-xs text-slate-500">{s.units} units</p>
+                            </div>
+                            <span className="text-sm font-bold text-indigo-600 w-12 text-center">{s.grade}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Review
-                      </Button>
-                      <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600">
-                        Approve & Finalize
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="finalized" className="mt-6">
@@ -1020,34 +1033,34 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
                 <p className="text-center text-slate-500 py-8">No finalized grades for this period</p>
               ) : (
                 <div className="space-y-4">
-                  {gradeSubmissions.filter(g => g.status === 'Approved').map((submission) => (
-                    <div key={submission.id} className="p-4 border border-green-200 bg-green-50 rounded-lg">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="text-slate-900 font-medium">{submission.subject_code} - {submission.subject}</h4>
-                          <p className="text-sm text-slate-600 mt-1">
-                            {submission.school_year} {submission.semester} Semester
-                          </p>
-                          <p className="text-sm text-slate-500 mt-1">{submission.students} students</p>
-                          {submission.approved_by && (
-                            <p className="text-xs text-green-600 mt-2">Approved by: {submission.approved_by}</p>
+                  {gradeSubmissions.filter(g => g.status === 'Approved').map((student) => (
+                    <div key={student.student_name} className="border border-green-200 rounded-xl overflow-hidden shadow-sm">
+                      <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">{student.student_name}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{student.course} • Year {student.year_level} • {student.school_year} • {student.semester} Sem</p>
+                          {student.approved_by && (
+                            <p className="text-xs text-green-600 mt-1">Approved by: {student.approved_by}</p>
                           )}
-                          <p className="text-xs text-slate-400 mt-1">{submission.date}</p>
                         </div>
                         <Badge className="bg-green-100 text-green-800 border-0">
-                          Finalized
+                          {student.subjects.length} {student.subjects.length === 1 ? 'subject' : 'subjects'} • Finalized
                         </Badge>
                       </div>
-                      <div className="mt-3 p-3 bg-white rounded border border-green-100 text-sm">
-                        <p className="font-medium mb-2 text-slate-700">Student Grades:</p>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {submission.grades_list?.map((grade: any, idx: number) => (
-                            <div key={idx} className="flex justify-between text-xs">
-                              <span className="text-slate-600">{grade.student}</span>
-                              <span className="font-semibold text-slate-900">{grade.grade}</span>
+                      <div className="px-4 py-2 bg-slate-50 border-b flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        <span>Subject</span>
+                        <span className="w-12 text-center">Grade</span>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {student.subjects.map((s: any, idx: number) => (
+                          <div key={idx} className="px-4 py-2.5 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{s.subject_code} — {s.subject_name}</p>
+                              <p className="text-xs text-slate-500">{s.units} units</p>
                             </div>
-                          )) || <p className="text-slate-500">No grades recorded</p>}
-                        </div>
+                            <span className="text-sm font-bold text-green-700 w-12 text-center">{s.grade}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -1226,7 +1239,7 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
                         <p className="text-sm text-slate-600 mt-2">Status: {e.status}</p>
                         {e.section && (
                           <p className="text-sm text-emerald-700 font-medium mt-1">
-                            ✓ Section: {e.section} (auto-assigned during assessment)
+                            ✓ Section: {e.section}
                           </p>
                         )}
                         {e.status === 'For Admin Approval' && e.total_amount && (
@@ -1437,7 +1450,7 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
             <Card className="p-0 overflow-hidden h-full">
               <div className="px-4 py-3 bg-slate-50 border-b">
                 <h3 className="text-sm font-semibold text-slate-700">
-                  Student Enrollments {smStudents.length > 0 && <span className="text-slate-400 font-normal">({smStudents.length})</span>}
+                  Students list {smStudents.length > 0 && <span className="text-slate-400 font-normal">({smStudents.length})</span>}
                 </h3>
               </div>
               <ScrollArea className="h-[580px]">
@@ -1805,18 +1818,6 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
               <CheckCircle className="h-5 w-5" />
               Clearances
             </button>
-
-            <button
-              onClick={() => setActiveSection('Subject Management')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeSection === 'Subject Management' 
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' 
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <BookOpen className="h-5 w-5" />
-              Adding/Dropping
-            </button>
           </nav>
 
           <div className="p-4 border-t border-slate-200">
@@ -1844,7 +1845,7 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
                   {activeSection === 'Grades Management' && 'Grades Management'}
                   {activeSection === 'COR Management' && 'COR Management'}
                   {activeSection === 'Clearances' && 'Clearances'}
-                  {activeSection === 'Subject Management' && 'Adding / Dropping of Subjects'}
+                  {activeSection === 'Subject Management' && 'Modifying of Subjects'}
                 </h1>
                 <p className="text-sm text-slate-600">
                   {activeSection === 'Dashboard' && 'Student records and academic documentation'}
@@ -1853,7 +1854,7 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
                   {activeSection === 'Grades Management' && 'Track faculty grade submissions and finalize grades'}
                   {activeSection === 'COR Management' && 'Generate and manage Certification of Registration'}
                   {activeSection === 'Clearances' && 'Resolve student clearance issues and requirements'}
-                  {activeSection === 'Subject Management' && 'Add, drop, or replace subjects in student enrollments with full audit trail'}
+                  {activeSection === 'Subject Management' && 'Modify subjects of students with full audit trail'}
                 </p>
               </div>
               <div className="flex items-center gap-3">

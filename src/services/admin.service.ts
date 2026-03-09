@@ -283,6 +283,25 @@ class AdminService {
     } catch (error) {
       throw new Error(handleApiError(error));
     }
-  }}
+  }
+
+  /**
+   * Get audit trail - all modifications by non-student roles
+   */
+  async getAuditTrail(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<any> {
+    try {
+      const response = await api.get('/admin/audit-trail', { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+}
 
 export const adminService = new AdminService();

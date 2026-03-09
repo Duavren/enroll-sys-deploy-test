@@ -24,7 +24,8 @@ import {
   Edit,
   X,
   Check as CheckIcon,
-  Loader2
+  Loader2,
+  Search
 } from 'lucide-react';
 import { adminService } from '../services/admin.service';
 import { enrollmentService } from '../services/enrollment.service';
@@ -203,6 +204,12 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [logsTotal, setLogsTotal] = useState<number | null>(null);
   const [logsLoading, setLogsLoading] = useState<boolean>(false);
   const [logsMoreLoading, setLogsMoreLoading] = useState<boolean>(false);
+  const [auditTrail, setAuditTrail] = useState<any[]>([]);
+  const [auditTrailPage, setAuditTrailPage] = useState<number>(1);
+  const [auditTrailLimit, setAuditTrailLimit] = useState<number>(25);
+  const [auditTrailTotal, setAuditTrailTotal] = useState<number | null>(null);
+  const [auditTrailLoading, setAuditTrailLoading] = useState<boolean>(false);
+  const [auditTrailSearch, setAuditTrailSearch] = useState<string>('');
   const [templates, setTemplates] = useState<any[]>([]);
   const [templateUploading, setTemplateUploading] = useState<boolean>(false);
   const [recentEnrollments, setRecentEnrollments] = useState<any[]>([]);
@@ -1864,6 +1871,110 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     </div>
   );
 
+  const renderAuditTrailContent = () => {
+    const loadAuditTrail = async () => {
+      try {
+        setAuditTrailLoading(true);
+        const resp = await adminService.getAuditTrail({
+          page: 1,
+          limit: auditTrailLimit,
+          search: auditTrailSearch
+        });
+        setAuditTrail(resp?.data || []);
+        setAuditTrailTotal(resp?.meta?.total ?? null);
+        setAuditTrailPage(1);
+      } catch (err: any) {
+        alert(err.message || 'Failed to load audit trail');
+      } finally {
+        setAuditTrailLoading(false);
+      }
+    };
+
+    return (
+      <div>
+        <Card className="border-0 shadow-lg">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex gap-2 flex-1 max-w-md">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input 
+                    placeholder="Search audit trail..." 
+                    className="pl-10"
+                    value={auditTrailSearch}
+                    onChange={(e) => setAuditTrailSearch(e.target.value)}
+                    onKeyUp={(e) => {
+                      if (e.key === 'Enter') {
+                        loadAuditTrail();
+                      }
+                    }}
+                  />
+                </div>
+                <Button size="sm" onClick={loadAuditTrail}>Search</Button>
+              </div>
+            </div>
+
+            {auditTrailLoading && auditTrail.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              </div>
+            ) : auditTrail.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-12">No audit trail entries found</p>
+            ) : (
+              <div className="space-y-3">
+                {auditTrail.map((entry, index) => (
+                  <div key={entry.id || index} className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h4 className="text-slate-900 font-medium">{entry.action}</h4>
+                        <p className="text-sm text-slate-600 mt-1">{entry.description}</p>
+                      </div>
+                      <Badge className="bg-blue-100 text-blue-700 border-0 ml-2 shrink-0">
+                        {entry.role || 'Staff'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span>User: {entry.username || 'System'}</span>
+                      <span>{entry.entity_type && `Entity: ${entry.entity_type} #${entry.entity_id}`}</span>
+                      <span>{new Date(entry.created_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!auditTrailLoading && auditTrail.length > 0 && (
+              <div className="p-3 flex items-center justify-center mt-4">
+                {(auditTrailTotal === null || auditTrail.length < auditTrailTotal) ? (
+                  <Button size="sm" onClick={async () => {
+                    try {
+                      setAuditTrailLoading(true);
+                      const nextPage = auditTrailPage + 1;
+                      const resp = await adminService.getAuditTrail({
+                        page: nextPage,
+                        limit: auditTrailLimit,
+                        search: auditTrailSearch
+                      });
+                      setAuditTrail(prev => [...prev, ...(resp?.data || [])]);
+                      setAuditTrailPage(nextPage);
+                      setAuditTrailTotal(resp?.meta?.total ?? auditTrailTotal);
+                    } catch (err: any) {
+                      alert(err.message || 'Failed to load more entries');
+                    } finally {
+                      setAuditTrailLoading(false);
+                    }
+                  }}>Load more</Button>
+                ) : (
+                  <p className="text-xs text-slate-500">No more entries</p>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   const renderManageFacultyContent = () => {
     if (loading) {
       return (
@@ -2989,6 +3100,18 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
               Account Requests
             </button>
 
+            <button
+              onClick={() => setActiveSection('Audit Trail')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                activeSection === 'Audit Trail' 
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' 
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <Clock className="h-5 w-5" />
+              Audit Trail
+            </button>
+
             {/* Faculty moved into Manage submenu; no top-level Faculty button */}
 
             <div className="pt-4">
@@ -3099,6 +3222,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   {activeSection === 'College Subjects' && 'College Subjects'}
                   {activeSection === 'School Year' && 'School Year and Semesters'}
                   {activeSection === 'Account Requests' && 'Account Requests'}
+                  {activeSection === 'Audit Trail' && 'Audit Trail'}
                   {activeSection === 'Transactions' && 'Transactions'}
                   {activeSection === 'Installment Payments' && 'Installment Payments'}
                   {activeSection === 'Manage Forms' && 'Digital Forms Library'}
@@ -3108,6 +3232,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   {activeSection === 'Dashboard' && 'Welcome back to your administration portal'}
                   {activeSection === 'Enrollment Request' && 'Review and manage all student enrollment submissions'}
                   {activeSection === 'Account Requests' && 'Approve or reject pending student account requests'}
+                  {activeSection === 'Audit Trail' && 'View all modifications made by non-student roles'}
                   {activeSection === 'Manage Students' && 'Add, update, and manage student records'}
                   {activeSection === 'Manage Teachers' && 'Manage teacher/faculty accounts and information'}
                   {activeSection === 'Manage Faculty' && 'Manage faculty accounts and information'}
@@ -3138,6 +3263,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             {activeSection === 'Dashboard' && renderDashboardContent()}
             {activeSection === 'Enrollment Request' && renderEnrollmentRequestsContent()}
             {activeSection === 'Account Requests' && renderAccountRequestsContent()}
+            {activeSection === 'Audit Trail' && renderAuditTrailContent()}
             {activeSection === 'Manage Students' && renderManageStudentsContent()}
             {activeSection === 'Manage Teachers' && renderManageFacultyContent()}
             {activeSection === 'Manage Faculty' && renderManageFacultyContent()}

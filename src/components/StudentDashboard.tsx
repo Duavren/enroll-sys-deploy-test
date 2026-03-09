@@ -677,7 +677,7 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
       'New': ['diploma', 'picture_2x2', 'clearance_form'],
       'Transferee': ['tor', 'certificate_transfer', 'clearance_form'],
       'Returning': ['form137', 'clearance_form'],
-      'Continuing': ['form137', 'clearance_form'],
+      'Continuing': ['clearance_form'],
       'Scholar': scholarshipType !== 'None' 
         ? ['scholarship_application', 'scholarship_supporting', 'clearance_form', 'dtr_form'] 
         : ['form137', 'form138', 'clearance_form']
@@ -2210,16 +2210,6 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
           {enrollmentStep === 2 && studentType === 'continuing' && (
             <div className="space-y-4">
               <h3 className="text-lg mb-4">Continuing Student - Upload Requirements</h3>
-
-              <DocumentUpload
-                label="Form 137 / Transcript of Records"
-                description="Upload your Form 137 (Report Card) or Transcript of Records"
-                docType="form137"
-                onFileSelect={handleDocumentUpload}
-                selectedFile={uploadedDocuments['form137']}
-                downloadUrl={getDocDownloadUrl('form137')}
-                acceptedFormats=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              />
 
               <DocumentUpload
                 label="Clearance Form"
