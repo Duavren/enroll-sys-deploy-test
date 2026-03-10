@@ -157,6 +157,11 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
   const [smReason, setSmReason] = useState('');
   const [smEnrollmentData, setSmEnrollmentData] = useState<any>(null);
 
+  // COR Management state
+  const [corSearchTerm, setCorSearchTerm] = useState('');
+  const [corPreviewOpen, setCorPreviewOpen] = useState(false);
+  const [selectedCorForPreview, setSelectedCorForPreview] = useState<any>(null);
+
   useEffect(() => {
     fetchData();
   }, [activeSection]);
@@ -194,9 +199,13 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
           setStudentRecords(studentsResponse.data || []);
         }
       } else if (activeSection === 'COR Management') {
-        const corsResponse = await registrarService.getAllCORs();
-        if (corsResponse.success) {
-          setCorRequests(corsResponse.data || []);
+        // Fetch enrolled students to display their CORs
+        try {
+          const resp = await registrarService.searchEnrolledStudents('', 'Enrolled');
+          setCorRequests(resp?.data || []);
+        } catch (err) {
+          console.error('Error fetching enrolled students:', err);
+          setCorRequests([]);
         }
       } else if (activeSection === 'Clearances') {
         const clearancesResponse = await registrarService.getAllClearances();
@@ -505,6 +514,97 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Failed to approve COR');
+    }
+  };
+
+  const handleCorPreview = async (enrollment: any) => {
+    try {
+      setError('');
+      // Set preview with enrollment data (which has student_name)
+      // Merge with COR data if available
+      setSelectedCorForPreview({
+        ...enrollment,
+      });
+      setCorPreviewOpen(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load COR');
+    }
+  };
+
+  const handleCorPrint = (enrollment: any) => {
+    try {
+      setError('');
+      // Open print dialog for COR
+      const printWindow = window.open('', '', 'width=800,height=600');
+      if (printWindow) {
+        const corContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Certificate of Registration - ${enrollment.first_name ? (enrollment.first_name + ' ' + (enrollment.middle_name ? enrollment.middle_name + ' ' : '') + enrollment.last_name + (enrollment.suffix ? ' ' + enrollment.suffix : '')) : (enrollment.student_name || 'Student')}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 40px; }
+              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+              .title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+              .subtitle { font-size: 14px; color: #666; }
+              .content { margin-top: 20px; }
+              .section { margin-bottom: 20px; }
+              .section-title { font-weight: bold; margin-bottom: 10px; font-size: 12px; text-transform: uppercase; }
+              .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+              .label { font-weight: bold; }
+              table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+              th { background-color: #f0f0f0; padding: 8px; text-align: left; border: 1px solid #ddd; }
+              td { padding: 8px; border: 1px solid #ddd; }
+              .footer { margin-top: 40px; display: flex; justify-content: space-between; }
+              .signature { width: 30%; text-align: center; }
+              .line { border-top: 1px solid #000; margin-top: 40px; margin-bottom: 5px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">CERTIFICATE OF REGISTRATION</div>
+              <div class="subtitle">Academic Year ${enrollment.school_year} - ${enrollment.semester}</div>
+            </div>
+            <div class="content">
+              <div class="section">
+                <div class="section-title">Student Information</div>
+                <div class="info-row">
+                  <span class="label">Name:</span>
+                  <span>${enrollment.first_name ? (enrollment.first_name + ' ' + (enrollment.middle_name ? enrollment.middle_name + ' ' : '') + enrollment.last_name + (enrollment.suffix ? ' ' + enrollment.suffix : '')) : (enrollment.student_name || 'N/A')}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">Student ID:</span>
+                  <span>${enrollment.student_id_number || enrollment.student_id || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">Course:</span>
+                  <span>${enrollment.course || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">Year Level:</span>
+                  <span>${enrollment.year_level || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+            <div class="footer">
+              <div class="signature">
+                <div class="line"></div>
+                <div>Registrar</div>
+              </div>
+              <div class="signature">
+                <div class="line"></div>
+                <div>Dean</div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+        printWindow.document.write(corContent);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to print COR');
     }
   };
 
@@ -1073,6 +1173,17 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
     </div>
   );
 
+  // Helper to build full name from separate fields
+  const getFullName = (s: any) => {
+    if (s.student_name) return s.student_name;
+    const parts = [s.first_name, s.middle_name, s.last_name, s.suffix].filter(Boolean);
+    return parts.join(' ') || 'Unknown';
+  };
+
+  const getStudentDisplayId = (s: any) => {
+    return s.student_id_number || s.student_id || 'N/A';
+  };
+
   const renderCORManagementContent = () => {
     if (loading) {
       return (
@@ -1081,6 +1192,28 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
         </div>
       );
     }
+
+    // Filter and sort students by name based on search term
+    const filteredStudents = corRequests
+      .filter((student) => {
+        const fullName = getFullName(student).toLowerCase();
+        const displayId = String(getStudentDisplayId(student)).toLowerCase();
+        const term = corSearchTerm.toLowerCase();
+        return fullName.includes(term) || displayId.includes(term);
+      })
+      .sort((a, b) => getFullName(a).localeCompare(getFullName(b)));
+
+    // Group by first letter of student name
+    const groupedByLetter = filteredStudents.reduce((acc, student) => {
+      const firstLetter = getFullName(student).charAt(0).toUpperCase();
+      if (!acc[firstLetter]) {
+        acc[firstLetter] = [];
+      }
+      acc[firstLetter].push(student);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    const sortedLetters = Object.keys(groupedByLetter).sort();
 
     return (
       <div>
@@ -1092,58 +1225,256 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
             </div>
           </div>
         )}
-        <Card className="border-0 shadow-lg">
-          <div className="p-6">
-            {corRequests.length === 0 ? (
-              <p className="text-center text-slate-500 py-8">No COR requests found</p>
-            ) : (
-              <div className="space-y-4">
-                {corRequests.map((request) => (
-                  <div key={request.id} className="p-4 border rounded-lg hover:bg-slate-50">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="text-slate-900">{request.student_name}</h4>
-                        <p className="text-sm text-slate-500">{request.cor_number || `COR-${request.id}`} • {request.student_id}</p>
-                        <p className="text-sm text-slate-600 mt-2">{request.course} • {request.semester}{request.section ? ` • Section ${request.section}` : ''}</p>
-                        <p className="text-xs text-slate-400 mt-1">{formatTimeAgo(request.created_at)}</p>
-                      </div>
-                      <Badge className={request.status === 'Approved' || request.status === 'Generated' ? 'bg-green-100 text-green-700 border-0' : 'bg-orange-100 text-orange-700 border-0'}>
-                        {request.status}
-                      </Badge>
-                    </div>
-                    {request.status === 'Pending' && (
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          className="bg-gradient-to-r from-green-600 to-green-700"
-                          onClick={() => handleGenerateCOR(request.enrollment_id)}
-                        >
-                          Generate COR
-                        </Button>
-                      </div>
-                    )}
-                    {(request.status === 'Generated' || request.status === 'Approved') && (
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleApproveCOR(request.id)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Printer className="h-4 w-4 mr-1" />
-                          Print
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+        
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by student name or ID..."
+              value={corSearchTerm}
+              onChange={(e) => setCorSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
-        </Card>
+        </div>
+
+        {filteredStudents.length === 0 ? (
+          <Card className="border-0 shadow-lg">
+            <div className="p-12 text-center">
+              <p className="text-slate-500 text-lg">No enrolled students found</p>
+              {corSearchTerm && (
+                <p className="text-slate-400 text-sm mt-2">Try adjusting your search terms</p>
+              )}
+            </div>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {sortedLetters.map((letter) => (
+              <div key={letter}>
+                {/* Letter Header */}
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                    {letter}
+                  </div>
+                  <h3 className="text-slate-700 font-semibold">
+                    {groupedByLetter[letter].length} {groupedByLetter[letter].length === 1 ? 'student' : 'students'}
+                  </h3>
+                </div>
+
+                {/* Students in this letter group */}
+                <div className="space-y-3 ml-11">
+                  {groupedByLetter[letter].map((student) => (
+                    <Card key={student.enrollment_id} className="border-l-4 border-l-blue-600 shadow-sm hover:shadow-md transition-all">
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="text-slate-900 font-semibold">{getFullName(student)}</h4>
+                            <p className="text-sm text-slate-500 mt-1">
+                              ID: {getStudentDisplayId(student)} • {student.course}
+                            </p>
+                            <p className="text-sm text-slate-600 mt-1">
+                              Year {student.year_level} • {student.school_year} • {student.semester} Semester
+                              {student.section && ` • Section ${student.section}`}
+                            </p>
+                          </div>
+                          <Badge className="bg-green-100 text-green-700 border-0 h-fit">
+                            Enrolled
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2 pt-3 border-t border-slate-100">
+                          <button
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.5rem',
+                              padding: '0.375rem 0.75rem',
+                              fontSize: '0.875rem',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '0.375rem',
+                              backgroundColor: '#ffffff',
+                              color: '#334155',
+                              cursor: 'pointer',
+                              opacity: 1,
+                              transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f1f5f9';
+                              e.currentTarget.style.borderColor = '#cbd5e1';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#ffffff';
+                              e.currentTarget.style.borderColor = '#e2e8f0';
+                            }}
+                            onClick={() => handleCorPreview(student)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            Preview
+                          </button>
+                          <button
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.5rem',
+                              padding: '0.375rem 0.75rem',
+                              fontSize: '0.875rem',
+                              border: 'none',
+                              borderRadius: '0.375rem',
+                              background: 'linear-gradient(to right, #2563eb, #1d4ed8)',
+                              color: '#ffffff',
+                              cursor: 'pointer',
+                              opacity: 1,
+                              transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(to right, #1d4ed8, #1e40af)';
+                              e.currentTarget.style.boxShadow = '0 4px 6px rgba(37, 99, 235, 0.3)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(to right, #2563eb, #1d4ed8)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                            onClick={() => handleCorPrint(student)}
+                          >
+                            <Printer className="h-4 w-4" />
+                            Print
+                          </button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* COR Preview Modal */}
+        {corPreviewOpen && selectedCorForPreview && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Certificate of Registration
+                    </h2>
+                    <p className="text-sm text-slate-600 mt-1">
+                      {getFullName(selectedCorForPreview)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setCorPreviewOpen(false)}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="border-b border-slate-200 pb-6 mb-6">
+                  <div className="text-center mb-6">
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      CERTIFICATE OF REGISTRATION
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Academic Year {selectedCorForPreview.school_year} - {selectedCorForPreview.semester} Semester
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Student Name</p>
+                      <p className="text-sm text-slate-900 font-medium mt-1">
+                        {getFullName(selectedCorForPreview)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Student ID</p>
+                      <p className="text-sm text-slate-900 font-medium mt-1">
+                        {getStudentDisplayId(selectedCorForPreview)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Course</p>
+                      <p className="text-sm text-slate-900 font-medium mt-1">
+                        {selectedCorForPreview.course}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Year Level</p>
+                      <p className="text-sm text-slate-900 font-medium mt-1">
+                        Year {selectedCorForPreview.year_level}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-4 border-t border-slate-200">
+                  <button
+                    style={{
+                      padding: '0.5rem 1rem',
+                      fontSize: '0.875rem',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '0.375rem',
+                      backgroundColor: '#ffffff',
+                      color: '#334155',
+                      cursor: 'pointer',
+                      opacity: 1,
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f1f5f9';
+                      e.currentTarget.style.borderColor = '#cbd5e1';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#ffffff';
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                    }}
+                    onClick={() => setCorPreviewOpen(false)}
+                  >
+                    Close
+                  </button>
+                  <button
+                    style={{
+                      padding: '0.5rem 1rem',
+                      fontSize: '0.875rem',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      background: 'linear-gradient(to right, #2563eb, #1d4ed8)',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      opacity: 1,
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(to right, #1d4ed8, #1e40af)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px rgba(37, 99, 235, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(to right, #2563eb, #1d4ed8)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onClick={() => {
+                      handleCorPrint(selectedCorForPreview);
+                      setCorPreviewOpen(false);
+                    }}
+                  >
+                    <Printer className="h-4 w-4" />
+                    Print COR
+                  </button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     );
   };
@@ -1300,9 +1631,6 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
                         </Button>
                         <Button size="sm" className="bg-gradient-to-r from-green-600 to-green-700" onClick={() => openAssessDialog(e)}>
                           Assess
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleGenerateCOR(e.id)}>
-                          Generate COR
                         </Button>
                         <Button 
                           size="sm" 

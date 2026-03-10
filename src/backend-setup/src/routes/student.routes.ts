@@ -53,5 +53,7 @@ router.post('/documents', authenticate, authorize('student'), upload.single('doc
 router.get('/documents/:id/download', authenticate, downloadDocument);
 router.get('/documents/download', authenticate, getDocumentByPath);
 router.get('/documents/enrollment/:enrollmentId', authenticate, authorize('admin', 'superadmin'), getEnrollmentDocuments);
+router.get('/enrollment/form', authenticate, authorize('student'), require('../controllers/student.controller').downloadEnrollmentForm);
+router.get('/enrollment/cor', authenticate, authorize('student'), require('../controllers/student.controller').downloadCOR);
 
 export default router;

@@ -362,3 +362,286 @@ export const getEnrollmentDocuments = async (req: AuthRequest, res: Response) =>
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+/**
+ * Download enrollment form (PDF)
+ */
+export const downloadEnrollmentForm = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    // Get student info
+    const student = await get(
+      `SELECT * FROM students WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    // Get latest enrollment
+    const enrollment = await get(
+      `SELECT * FROM enrollments WHERE student_id = ? AND status = 'Enrolled' ORDER BY created_at DESC LIMIT 1`,
+      [student.id]
+    );
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, message: 'No active enrollment found' });
+    }
+
+    // Get enrolled subjects
+    const subjects = await query(
+      `SELECT s.* FROM subjects s
+       JOIN enrollment_subjects es ON s.id = es.subject_id
+       WHERE es.enrollment_id = ?`,
+      [enrollment.id]
+    );
+
+    // Generate simple HTML/text response (can be converted to PDF by frontend or use a library)
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Enrollment Form</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .info { margin: 20px 0; }
+          .info-row { display: flex; margin: 8px 0; }
+          .label { font-weight: bold; width: 150px; }
+          .value { flex: 1; }
+          .subjects { margin-top: 30px; }
+          .subject-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          .subject-table th, .subject-table td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+          .subject-table th { background-color: #f0f0f0; font-weight: bold; }
+          .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>ENROLLMENT FORM</h1>
+          <p style="margin: 10px 0;">Informatics North Gate University</p>
+          <p style="margin: 0;">Academic Year ${enrollment.school_year}</p>
+        </div>
+
+        <div class="info">
+          <div class="info-row">
+            <span class="label">Student Name:</span>
+            <span class="value">${student.first_name} ${student.middle_name || ''} ${student.last_name}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Student ID:</span>
+            <span class="value">${student.student_id}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Course:</span>
+            <span class="value">${student.course}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Year Level:</span>
+            <span class="value">${student.year_level}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Semester:</span>
+            <span class="value">${enrollment.semester} Semester</span>
+          </div>
+        </div>
+
+        <div class="subjects">
+          <h3>Enrolled Subjects</h3>
+          <table class="subject-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Subject Name</th>
+                <th>Units</th>
+                <th>Year Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${subjects.map(s => `
+                <tr>
+                  <td>${s.subject_code}</td>
+                  <td>${s.subject_name}</td>
+                  <td>${s.units}</td>
+                  <td>${s.year_level || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="footer">
+          <p>Generated on: ${new Date().toLocaleDateString()}</p>
+          <p>This is an official enrollment document.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="Enrollment_Form.html"');
+    res.send(html);
+  } catch (error) {
+    console.error('Download enrollment form error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * Download COR - Certificate of Registration (PDF)
+ */
+export const downloadCOR = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    // Get student info
+    const student = await get(
+      `SELECT * FROM students WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    // Get latest enrollment
+    const enrollment = await get(
+      `SELECT * FROM enrollments WHERE student_id = ? AND status = 'Enrolled' ORDER BY created_at DESC LIMIT 1`,
+      [student.id]
+    );
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, message: 'No active enrollment found' });
+    }
+
+    // Get enrolled subjects
+    const subjects = await query(
+      `SELECT s.* FROM subjects s
+       JOIN enrollment_subjects es ON s.id = es.subject_id
+       WHERE es.enrollment_id = ?`,
+      [enrollment.id]
+    );
+
+    // Calculate total units
+    const totalUnits = subjects.reduce((sum, s) => sum + (s.units || 0), 0);
+
+    // Generate COR HTML
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Certificate of Registration</title>
+        <style>
+          body { font-family: 'Times New Roman', serif; margin: 40px; color: #333; }
+          .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #333; padding-bottom: 20px; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+          .header-subtitle { margin: 10px 0 5px 0; font-size: 14px; }
+          .university { font-size: 16px; font-weight: bold; margin: 10px 0 5px 0; }
+          .info { margin: 30px 0; }
+          .info-row { display: flex; margin: 12px 0; font-size: 14px; }
+          .label { font-weight: bold; width: 180px; }
+          .value { flex: 1; border-bottom: 1px dotted #333; padding-bottom: 2px; }
+          .subjects { margin-top: 40px; }
+          .subjects h3 { text-decoration: underline; font-size: 14px; margin-bottom: 15px; }
+          .subject-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          .subject-table th, .subject-table td { padding: 10px; border: 1px solid #333; text-align: left; font-size: 12px; }
+          .subject-table th { background-color: #f9f9f9; font-weight: bold; }
+          .total-units { text-align: right; font-weight: bold; margin-top: 15px; font-size: 14px; }
+          .footer { margin-top: 50px; text-align: center; font-size: 12px; line-height: 1.8; }
+          .signature-line { display: flex; justify-content: space-around; margin-top: 60px; }
+          .signature { text-align: center; width: 30%; }
+          .line { border-top: 1px solid #333; margin-bottom: 5px; height: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="university">Informatics North Gate University</div>
+          <h1>CERTIFICATE OF REGISTRATION</h1>
+          <div class="header-subtitle">COR</div>
+        </div>
+
+        <div class="info">
+          <div class="info-row">
+            <span class="label">Student Name:</span>
+            <span class="value">${student.first_name} ${student.middle_name || ''} ${student.last_name}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Student ID:</span>
+            <span class="value">${student.student_id}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Course:</span>
+            <span class="value">${student.course}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Year Level:</span>
+            <span class="value">${student.year_level}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Academic Year:</span>
+            <span class="value">${enrollment.school_year}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Semester:</span>
+            <span class="value">${enrollment.semester} Semester</span>
+          </div>
+        </div>
+
+        <div class="subjects">
+          <h3>Enrolled Subjects</h3>
+          <table class="subject-table">
+            <thead>
+              <tr>
+                <th>Subject Code</th>
+                <th>Subject Name</th>
+                <th>Units</th>
+                <th>Year Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${subjects.map((s, idx) => `
+                <tr>
+                  <td>${s.subject_code}</td>
+                  <td>${s.subject_name}</td>
+                  <td style="text-align: center;">${s.units}</td>
+                  <td>${s.year_level || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="total-units">Total Units: ${totalUnits}</div>
+        </div>
+
+        <div class="footer">
+          <p>This certifies that the above-named student is officially registered for the current academic term</p>
+          <p>and is authorized to attend all courses listed above.</p>
+          <p style="margin-top: 30px;">Date Issued: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
+
+        <div class="signature-line">
+          <div class="signature">
+            <div class="line"></div>
+            <span>Registrar</span>
+          </div>
+          <div class="signature">
+            <div class="line"></div>
+            <span>Dean</span>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="Certificate_of_Registration.html"');
+    res.send(html);
+  } catch (error) {
+    console.error('Download COR error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

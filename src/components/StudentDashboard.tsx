@@ -108,6 +108,8 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
   const [grades, setGrades] = useState<any[]>([]);
   const [loadingGrades, setLoadingGrades] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingCOR, setDownloadingCOR] = useState(false);
+  const [downloadingForm, setDownloadingForm] = useState(false);
   const [scholarshipType, setScholarshipType] = useState<string>('None');
   const [scholarshipLetter, setScholarshipLetter] = useState<File | null>(null);
   const [installmentSchedule, setInstallmentSchedule] = useState<any[]>([]);
@@ -1845,19 +1847,142 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
           <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="h-8 w-8 text-green-600" />
           </div>
-          <h3 className="text-xl mb-2">Enrollment Complete!</h3>
-          <p className="text-slate-600 mb-4">You are now enrolled. View your schedule and download your enrollment form.</p>
-          <div className="flex gap-2 justify-center">
-            <Button 
+          <h3 className="text-xl mb-2 font-semibold">Enrollment Complete!</h3>
+          <p className="text-slate-600 mb-6">You are now enrolled. View your schedule and download your enrollment documents.</p>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <button 
               onClick={() => setActiveSection('My Schedule')}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600"
+              style={{
+                background: 'linear-gradient(to right, #2563eb, #4f46e5)',
+                color: 'white',
+                opacity: downloadingCOR || downloadingForm ? 0.6 : 1,
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!(downloadingCOR || downloadingForm)) {
+                  e.currentTarget.style.background = 'linear-gradient(to right, #1d4ed8, #4338ca)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 10px 15px rgba(0, 0, 0, 0.1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(to right, #2563eb, #4f46e5)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 rounded-md font-medium disabled:pointer-events-none cursor-pointer"
+              disabled={downloadingCOR || downloadingForm}
             >
+              <CalendarIcon className="h-4 w-4" />
               View Schedule
-            </Button>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Download Enrollment Form
-            </Button>
+            </button>
+            
+            <button 
+              onClick={async () => {
+                try {
+                  setDownloadingForm(true);
+                  const response = await fetch('/api/student/enrollment/form', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  });
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Enrollment_Form.html';
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                } catch (error) {
+                  alert('Failed to download enrollment form');
+                } finally {
+                  setDownloadingForm(false);
+                }
+              }}
+              style={{
+                border: '1px solid #e2e8f0',
+                background: 'white',
+                color: '#1e293b',
+                opacity: downloadingCOR || downloadingForm ? 0.6 : 1,
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!(downloadingCOR || downloadingForm)) {
+                  e.currentTarget.style.background = '#f1f5f9';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 10px 15px rgba(0, 0, 0, 0.1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'white';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 rounded-md font-medium disabled:pointer-events-none cursor-pointer"
+              disabled={downloadingCOR || downloadingForm}
+            >
+              {downloadingForm ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {downloadingForm ? 'Downloading...' : 'Download Form'}
+            </button>
+            
+            <button 
+              onClick={async () => {
+                try {
+                  setDownloadingCOR(true);
+                  const response = await fetch('/api/student/enrollment/cor', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  });
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Certificate_of_Registration.html';
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                } catch (error) {
+                  alert('Failed to download Certificate of Registration');
+                } finally {
+                  setDownloadingCOR(false);
+                }
+              }}
+              style={{
+                background: 'linear-gradient(to right, #16a34a, #059669)',
+                color: 'white',
+                opacity: downloadingCOR || downloadingForm ? 0.6 : 1,
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!(downloadingCOR || downloadingForm)) {
+                  e.currentTarget.style.background = 'linear-gradient(to right, #15803d, #047857)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 10px 15px rgba(0, 0, 0, 0.1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(to right, #16a34a, #059669)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 rounded-md font-medium disabled:pointer-events-none cursor-pointer"
+              disabled={downloadingCOR || downloadingForm}
+            >
+              {downloadingCOR ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {downloadingCOR ? 'Downloading...' : 'Download COR'}
+            </button>
           </div>
         </Card>
       )}
