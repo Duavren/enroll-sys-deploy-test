@@ -403,8 +403,20 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
       // Fetch enrollments
       if (activeSection === 'Dashboard' || activeSection === 'Enrollment Request') {
-        const pendingData = await adminService.getAllEnrollments();
-        const pending = pendingData.data?.map((e: any) => ({
+        // Fetch only enrollments with pending/approval statuses
+        const statuses = ['Pending Assessment', 'For Admin Approval', 'For Registrar Assessment', 'For Payment', 'For Subject Selection'];
+        const allPending = [];
+        
+        for (const status of statuses) {
+          try {
+            const pendingData = await adminService.getAllEnrollments({ status });
+            allPending.push(...(pendingData.data || []));
+          } catch (err) {
+            console.error(`Error fetching enrollments with status ${status}:`, err);
+          }
+        }
+        
+        const pending = allPending.map((e: any) => ({
           id: `#E-${e.id}`,
           enrollmentId: e.id,
           student: `${e.first_name || ''} ${e.last_name || ''}`.trim(),
@@ -1936,7 +1948,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     <div className="flex items-center justify-between text-xs text-slate-500">
                       <span>User: {entry.username || 'System'}</span>
                       <span>{entry.entity_type && `Entity: ${entry.entity_type} #${entry.entity_id}`}</span>
-                      <span>{new Date(entry.created_at).toLocaleString()}</span>
+                      <span>{new Date(entry.created_at + 'Z').toLocaleString('en-US', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit',
+                        hour12: true
+                      })}</span>
                     </div>
                   </div>
                 ))}

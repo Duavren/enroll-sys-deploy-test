@@ -1710,7 +1710,15 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
                                 </div>
                                 <div className="text-right shrink-0 ml-4">
                                   <p className="text-xs text-slate-500">{entry.performed_by_name}</p>
-                                  <p className="text-[10px] text-slate-400">{new Date(entry.created_at).toLocaleString()}</p>
+                                  <p className="text-[10px] text-slate-400">{new Date(entry.created_at + 'Z').toLocaleString('en-US', { 
+                                    year: 'numeric', 
+                                    month: '2-digit', 
+                                    day: '2-digit', 
+                                    hour: '2-digit', 
+                                    minute: '2-digit', 
+                                    second: '2-digit',
+                                    hour12: true
+                                  })}</p>
                                 </div>
                               </div>
                             </div>

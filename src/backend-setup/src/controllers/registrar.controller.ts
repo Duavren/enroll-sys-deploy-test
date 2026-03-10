@@ -736,6 +736,14 @@ export const registrarAddSubject = async (req: AuthRequest, res: Response) => {
        oldUnits, updated?.totalUnits || 0, oldAmount, updated?.totalAmount || 0]
     );
 
+    // Log to activity logs for audit trail
+    const subject = await get('SELECT subject_code, subject_name FROM subjects WHERE id = ?', [subject_id]);
+    const student = await get('SELECT student_id, first_name, last_name FROM students WHERE id = ?', [enrollment.student_id]);
+    await run(
+      'INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description) VALUES (?, ?, ?, ?, ?)',
+      [req.user?.id, 'ADD_SUBJECT', 'enrollment', id, `Added subject ${subject?.subject_code} (${subject?.subject_name}) to enrollment ${id} for ${student?.first_name} ${student?.last_name} (${student?.student_id})`]
+    );
+
     res.json({ success: true, message: 'Subject added successfully' });
   } catch (error) {
     console.error('Registrar add subject error:', error);
@@ -773,6 +781,8 @@ export const registrarDropSubject = async (req: AuthRequest, res: Response) => {
     const updated = await recalcEnrollmentFees(id);
 
     const user = await get('SELECT username FROM users WHERE id = ?', [req.user?.id]);
+    const subject = await get('SELECT subject_code, subject_name FROM subjects WHERE id = ?', [subjectId]);
+    
     await run(
       `INSERT INTO enrollment_subject_audit
         (enrollment_id, subject_id, action, reason, performed_by, performed_by_name,
@@ -780,6 +790,13 @@ export const registrarDropSubject = async (req: AuthRequest, res: Response) => {
        VALUES (?, ?, 'DROP', ?, ?, ?, ?, ?, ?, ?)`,
       [id, subjectId, reason || null, req.user?.id, user?.username || 'unknown',
        oldUnits, updated?.totalUnits || 0, oldAmount, updated?.totalAmount || 0]
+    );
+
+    // Log to activity logs for audit trail
+    const dropStudent = await get('SELECT student_id, first_name, last_name FROM students WHERE id = ?', [enrollment.student_id]);
+    await run(
+      'INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description) VALUES (?, ?, ?, ?, ?)',
+      [req.user?.id, 'DROP_SUBJECT', 'enrollment', id, `Dropped subject ${subject?.subject_code} (${subject?.subject_name}) from enrollment ${id} for ${dropStudent?.first_name} ${dropStudent?.last_name} (${dropStudent?.student_id})`]
     );
 
     res.json({ success: true, message: 'Subject dropped successfully' });

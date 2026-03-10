@@ -8,7 +8,11 @@ export const getAllSections = async (req: AuthRequest, res: Response) => {
     const { course, year_level, school_year, semester, status } = req.query;
 
     let sql = `
-      SELECT s.*, f.first_name || ' ' || f.last_name as adviser_name
+      SELECT s.*, f.first_name || ' ' || f.last_name as adviser_name,
+        (SELECT COUNT(DISTINCT e.student_id) FROM enrollments e 
+         JOIN enrollment_subjects es ON e.id = es.enrollment_id
+         WHERE e.status IN ('For Subject Selection', 'For Payment', 'For Registrar Assessment', 'Enrolled')
+         AND EXISTS (SELECT 1 FROM students st WHERE st.id = e.student_id AND st.section = s.id)) as current_enrollment
       FROM sections s
       LEFT JOIN faculty f ON s.adviser_id = f.id
       WHERE 1=1

@@ -303,6 +303,17 @@ export const updateStudent = async (req: AuthRequest, res: Response) => {
       values
     );
 
+    // Log activity - track that an admin edited this student
+    const changedFields = updateFields
+      .filter(f => !f.includes('updated_at'))
+      .map(f => f.split(' = ')[0])
+      .join(', ');
+    const studentName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+    await run(
+      'INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description) VALUES (?, ?, ?, ?, ?)',
+      [req.user?.id, 'UPDATE_STUDENT', 'student', id, `Updated student ${student.student_id} (${studentName}): ${changedFields}`]
+    );
+
     res.json({
       success: true,
       message: 'Student updated successfully'
@@ -745,7 +756,9 @@ export const getAuditTrail = async (req: AuthRequest, res: Response) => {
       SELECT al.*, u.username, u.role
       FROM activity_logs al
       LEFT JOIN users u ON al.user_id = u.id
-      WHERE u.role IS NOT NULL AND u.role != 'student'
+      WHERE u.role IS NOT NULL AND u.role != 'student' 
+      AND al.entity_type != 'notification'
+      AND al.action NOT LIKE '%notification%'
     `;
     const params: any[] = [];
 
