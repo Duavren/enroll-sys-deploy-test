@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_SERVER_URL } from '../utils/api';
 import { Button } from './ui/button';
 import { 
   User, 
@@ -692,8 +693,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   const handleAdminDownloadDocument = (docId: number) => {
     const token = localStorage.getItem('auth_token');
-    const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5000';
-    window.open(`${baseUrl}/api/admin/documents/${docId}/download?token=${token}`, '_blank');
+    window.open(`${API_SERVER_URL}/api/admin/documents/${docId}/download?token=${token}`, '_blank');
   };
 
   const handlePreviewTransaction = (transaction: any) => {
@@ -3592,12 +3592,11 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       variant="outline"
                       className="border-green-300 text-green-700 hover:bg-green-100"
                       onClick={() => {
-                        const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5000';
                         const receiptUrl = selectedItem.receipt_path.startsWith('http') 
                           ? selectedItem.receipt_path 
                           : selectedItem.receipt_path.startsWith('/') 
-                            ? `${baseUrl}${selectedItem.receipt_path}`
-                            : `${baseUrl}/${selectedItem.receipt_path}`;
+                            ? `${API_SERVER_URL}${selectedItem.receipt_path}`
+                            : `${API_SERVER_URL}/${selectedItem.receipt_path}`;
                         
                         const link = document.createElement('a');
                         link.href = receiptUrl;
@@ -3669,12 +3668,11 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       variant="outline"
                       className="border-green-300 text-green-700 hover:bg-green-100"
                       onClick={() => {
-                        const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5000';
                         const receiptUrl = selectedItem.receipt_path.startsWith('http') 
                           ? selectedItem.receipt_path 
                           : selectedItem.receipt_path.startsWith('/') 
-                            ? `${baseUrl}${selectedItem.receipt_path}`
-                            : `${baseUrl}/${selectedItem.receipt_path}`;
+                            ? `${API_SERVER_URL}${selectedItem.receipt_path}`
+                            : `${API_SERVER_URL}/${selectedItem.receipt_path}`;
                         
                         const link = document.createElement('a');
                         link.href = receiptUrl;

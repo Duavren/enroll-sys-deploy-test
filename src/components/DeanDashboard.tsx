@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_SERVER_URL } from '../utils/api';
 import { Button } from './ui/button';
 import { 
   LogOut, 
@@ -192,8 +193,7 @@ export default function DeanDashboard({ onLogout }: DeanDashboardProps) {
 
   const handleDeanDownloadDocument = (docId: number) => {
     const token = localStorage.getItem('auth_token');
-    const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5000';
-    window.open(`${baseUrl}/api/admin/documents/${docId}/download?token=${token}`, '_blank');
+    window.open(`${API_SERVER_URL}/api/admin/documents/${docId}/download?token=${token}`, '_blank');
   };
 
   const [newFacultyForm, setNewFacultyForm] = useState({

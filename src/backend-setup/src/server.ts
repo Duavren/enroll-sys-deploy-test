@@ -32,10 +32,20 @@ import scholarshipRoutes from './routes/scholarship.routes';
 dotenv.config();
 
 const app: Express = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+    /^http:\/\/192\.168\..*:[0-9]+$/,
+    /^http:\/\/10\..*:[0-9]+$/
+  ],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -135,9 +145,10 @@ app.use((req: Request, res: Response) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0' as any, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📚 Enrollment System API - Environment: ${process.env.NODE_ENV}`);
+  console.log(`🌐 Listening on all network interfaces (0.0.0.0:${PORT})`);
 });
 
 export default app;

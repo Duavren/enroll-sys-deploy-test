@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_SERVER_URL } from '../utils/api';
 import { Button } from './ui/button';
 import { 
   LogOut, 
@@ -452,15 +453,13 @@ export default function RegistrarDashboard({ onLogout }: RegistrarDashboardProps
   const handleDownloadScholarship = (path: string) => {
     const filename = path.split('/').pop();
     const token = localStorage.getItem('auth_token');
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-    const url = `${baseUrl}/api/registrar/scholarships/download/${filename}?token=${token}`;
+    const url = `${API_SERVER_URL}/api/registrar/scholarships/download/${filename}?token=${token}`;
     window.open(url, '_blank');
   };
 
   const handleDownloadDocument = (docId: number) => {
     const token = localStorage.getItem('auth_token');
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-    const url = `${baseUrl}/api/admin/documents/${docId}/download?token=${token}`;
+    const url = `${API_SERVER_URL}/api/admin/documents/${docId}/download?token=${token}`;
     window.open(url, '_blank');
   };
 

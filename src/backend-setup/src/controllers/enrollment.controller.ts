@@ -469,7 +469,7 @@ export const submitForAssessment = async (req: AuthRequest, res: Response) => {
     );
 
     // Send notification to student
-    await sendEnrollmentNotification(enrollments[0].student_id, id, 'Pending Assessment');
+    await sendEnrollmentNotification(enrollments[0].student_id, Number(id), 'Pending Assessment');
 
     // Log activity
     await run(
@@ -560,7 +560,7 @@ export const assessEnrollment = async (req: AuthRequest, res: Response) => {
     );
 
     // Send notification
-    await sendEnrollmentNotification(enrollments[0].student_id, id, 'For Registrar Assessment');
+    await sendEnrollmentNotification(enrollments[0].student_id, Number(id), 'For Registrar Assessment');
 
     // Log activity
     await run(
@@ -777,7 +777,7 @@ export const approveSubjectSelection = async (req: AuthRequest, res: Response) =
     await run(updateQuery, updateParams);
 
     // Send notification to student
-    await sendEnrollmentNotification(enrollments[0].student_id, id, 'For Payment');
+    await sendEnrollmentNotification(enrollments[0].student_id, Number(id), 'For Payment');
 
     await run(
       'INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description) VALUES (?, ?, ?, ?, ?)',
@@ -809,7 +809,7 @@ export const rejectEnrollmentByDean = async (req: AuthRequest, res: Response) =>
     );
 
     // Send notification to student
-    await sendEnrollmentNotification(enrollments[0].student_id, id, 'Pending Assessment');
+    await sendEnrollmentNotification(enrollments[0].student_id, Number(id), 'Pending Assessment');
 
     await run(
       'INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description) VALUES (?, ?, ?, ?, ?)',

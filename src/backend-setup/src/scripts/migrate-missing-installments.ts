@@ -1,4 +1,4 @@
-import { query, run } from '../database/db';
+import { query, run } from '../database/connection';
 
 export const migrateMissingInstallments = async () => {
   try {

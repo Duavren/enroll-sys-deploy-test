@@ -197,7 +197,7 @@ export const addPayment = async (req: Request, res: Response) => {
     );
 
     const entry = { 
-      id: result.lastID, 
+      id: result.lastInsertRowid, 
       studentId, 
       amount, 
       method, 
@@ -304,7 +304,7 @@ export const submitInstallmentPayment = async (req: Request, res: Response) => {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
         [enrollmentId, studentId, amount, actualAmountPaid, penaltyToApply, period, 'Pending', paymentMethod, referenceNumber || null, receiptPath || null]
       );
-      paymentId = result.lastID;
+      paymentId = result.lastInsertRowid;
     }
 
     // Update enrollment status to Payment Verification

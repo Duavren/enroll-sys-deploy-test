@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_SERVER_URL } from '../utils/api';
 import { Button } from './ui/button';
 import { 
   User, 
@@ -950,11 +951,9 @@ export default function StudentDashboard({ onLogout }: StudentDashboardProps) {
 
   const handleDownloadReceipt = (payment: any) => {
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-      
       // If server-generated receipt path is available, download it directly
       if (payment.receipt_path) {
-        window.open(`${baseUrl}${payment.receipt_path}`, '_blank');
+        window.open(`${API_SERVER_URL}${payment.receipt_path}`, '_blank');
         return;
       }
       

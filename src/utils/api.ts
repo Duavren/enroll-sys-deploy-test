@@ -1,7 +1,10 @@
 import axios from 'axios';
 
-// API Base URL - Change this if your backend runs on a different port
-export const API_BASE_URL = 'http://localhost:5000/api';
+// API Base URL - reads from .env.local (VITE_API_BASE_URL)
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+// Server base URL (without /api) - for file downloads, uploads, etc.
+export const API_SERVER_URL = API_BASE_URL.replace(/\/api$/, '');
 
 // Create axios instance with default config
 const api = axios.create({

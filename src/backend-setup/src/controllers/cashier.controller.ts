@@ -303,7 +303,7 @@ export const approveTuitionAssessment = async (req: AuthRequest, res: Response) 
     );
 
     // Send notification to student
-    await sendEnrollmentNotification(enrollments[0].student_id, id, 'Ready for Payment');
+    await sendEnrollmentNotification(enrollments[0].student_id, Number(id), 'Ready for Payment');
 
     await run(
       'INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description) VALUES (?, ?, ?, ?, ?)',
